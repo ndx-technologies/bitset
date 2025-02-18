@@ -44,7 +44,10 @@ func (s BitSet256) AppendBinary(b []byte) ([]byte, error) {
 	return b, nil
 }
 
-func (s BitSet256) MarshalBinary() ([]byte, error) { return s.AppendBinary(nil) }
+func (s BitSet256) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 0, 32)
+	return s.AppendBinary(b)
+}
 
 func (s *BitSet256) UnmarshalBinary(data []byte) error {
 	if len(data) != 32 {
