@@ -55,8 +55,7 @@ func (s BitSet) AppendBinary(b []byte) ([]byte, error) {
 }
 
 func (s BitSet) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, 8 * len(s.words))
-	return s.AppendBinary(b)
+	return s.AppendBinary(make([]byte, 0, 8*len(s.words)))
 }
 
 func (s *BitSet) UnmarshalBinary(data []byte) error {
