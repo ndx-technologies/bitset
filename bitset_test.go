@@ -44,6 +44,43 @@ func TestBitSet_encodingError(t *testing.T) {
 	}
 }
 
+func FuzzBitSet_AppendBinary(f *testing.F) {
+	f.Add([]byte(nil), []byte{1, 2, 3, 4, 5, 6, 7, 8})
+	f.Add([]byte{1, 2, 3}, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+
+	f.Fuzz(func(t *testing.T, out, data []byte) {
+		if len(data) < 16 {
+			data = append(data, make([]byte, 16-len(data))...)
+		} else if len(data) > 16 {
+			data = data[:16]
+		}
+
+		var a bitset.BitSet
+
+		if err := a.UnmarshalBinary(data); err != nil {
+			t.Error(err)
+		}
+
+		dataBefore := make([]byte, len(data))
+		copy(dataBefore, data)
+
+		outBefore := make([]byte, len(out))
+		copy(outBefore, out)
+
+		out, err := a.AppendBinary(out)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if !bytes.Equal(outBefore, out[:len(outBefore)]) {
+			t.Error(outBefore, out)
+		}
+		if !bytes.Equal(dataBefore, out[len(outBefore):]) {
+			t.Error(dataBefore, out[len(outBefore):])
+		}
+	})
+}
+
 func FuzzBitSet_BinaryEncoding(f *testing.F) {
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7})
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
@@ -60,13 +97,11 @@ func FuzzBitSet_BinaryEncoding(f *testing.F) {
 
 		if err := bs.UnmarshalBinary(data); err != nil {
 			t.Error(err)
-			return
 		}
 
 		b, err := bs.MarshalBinary()
 		if err != nil {
 			t.Error(err)
-			return
 		}
 
 		if !bytes.Equal(data, b) {
@@ -197,11 +232,10 @@ func BenchmarkBitSet_AppendBinary(b *testing.B) {
 				s.Set(i, rand.IntN(2) == 0)
 			}
 
-			var out []byte
-			out = make([]byte, 0, n*2*8)
+			out := make([]byte, 0, n*2*8)
 
 			for b.Loop() {
-				out, _ = s.AppendBinary(out)
+				s.AppendBinary(out)
 			}
 		})
 	}
@@ -217,7 +251,7 @@ func BenchmarkBitSet_MarshalBinary(b *testing.B) {
 			}
 
 			for b.Loop() {
-				_, _ = s.MarshalBinary()
+				s.MarshalBinary()
 			}
 		})
 	}
@@ -235,7 +269,7 @@ func BenchmarkBitSet_UnmarshalBinary(b *testing.B) {
 			v, _ := x.MarshalBinary()
 
 			for b.Loop() {
-				_ = y.UnmarshalBinary(v)
+				y.UnmarshalBinary(v)
 			}
 		})
 	}

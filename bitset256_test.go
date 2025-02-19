@@ -9,12 +9,6 @@ import (
 	"github.com/ndx-technologies/bitset"
 )
 
-func ExampleBitSet256_empty() {
-	var empty bitset.BitSet256
-	fmt.Print(empty.IsZero())
-	// Output: true
-}
-
 func ExampleBitSet256() {
 	var a bitset.BitSet256
 	a.Set(11, true)
@@ -22,6 +16,12 @@ func ExampleBitSet256() {
 
 	fmt.Print(a.IsZero(), a.Get(11), a.Get(64), a.Get(256))
 	// Output: false true false false
+}
+
+func ExampleBitSet256_IsZero() {
+	var empty bitset.BitSet256
+	fmt.Print(empty.IsZero())
+	// Output: true
 }
 
 func ExampleBitSet256_Union() {
@@ -43,6 +43,43 @@ func TestBitSet256_encodingError(t *testing.T) {
 	}
 }
 
+func FuzzBitSet256_AppendBinary(f *testing.F) {
+	f.Add([]byte(nil), []byte{1, 2, 3, 4, 5, 6, 7, 8})
+	f.Add([]byte{1, 2, 3}, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+
+	f.Fuzz(func(t *testing.T, out, data []byte) {
+		if len(data) < 32 {
+			data = append(data, make([]byte, 32-len(data))...)
+		} else if len(data) > 32 {
+			data = data[:32]
+		}
+
+		var a bitset.BitSet256
+
+		if err := a.UnmarshalBinary(data); err != nil {
+			t.Error(err)
+		}
+
+		dataBefore := make([]byte, len(data))
+		copy(dataBefore, data)
+
+		outBefore := make([]byte, len(out))
+		copy(outBefore, out)
+
+		out, err := a.AppendBinary(out)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if !bytes.Equal(outBefore, out[:len(outBefore)]) {
+			t.Error(outBefore, out)
+		}
+		if !bytes.Equal(dataBefore, out[len(outBefore):]) {
+			t.Error(dataBefore, out[len(outBefore):])
+		}
+	})
+}
+
 func FuzzBitSet256_BinaryEncoding(f *testing.F) {
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0})
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
@@ -59,13 +96,11 @@ func FuzzBitSet256_BinaryEncoding(f *testing.F) {
 
 		if err := a.UnmarshalBinary(data); err != nil {
 			t.Error(err)
-			return
 		}
 
 		b, err := a.MarshalBinary()
 		if err != nil {
 			t.Error(err)
-			return
 		}
 
 		if len(b) != 32 {
@@ -116,7 +151,7 @@ func FuzzBitSet256_GetSet(f *testing.F) {
 	})
 }
 
-func BenchmarkBitSet256_IsEmpty(b *testing.B) {
+func BenchmarkBitSet256_IsZero(b *testing.B) {
 	var s bitset.BitSet256
 
 	for b.Loop() {
@@ -182,11 +217,10 @@ func BenchmarkBitSet256_AppendBinary(b *testing.B) {
 		s.Set(i, rand.IntN(2) == 0)
 	}
 
-	var out []byte
-	out = make([]byte, 0, bitset.BitSet256Size*8)
+	out := make([]byte, 0, bitset.BitSet256Size*8)
 
 	for b.Loop() {
-		out, _ = s.AppendBinary(out)
+		s.AppendBinary(out)
 	}
 }
 
@@ -198,7 +232,7 @@ func BenchmarkBitSet256_MarshalBinary(b *testing.B) {
 	}
 
 	for b.Loop() {
-		_, _ = s.MarshalBinary()
+		s.MarshalBinary()
 	}
 }
 
@@ -212,6 +246,6 @@ func BenchmarkBitSet256_UnmarshalBinary(b *testing.B) {
 	v, _ := x.MarshalBinary()
 
 	for b.Loop() {
-		_ = y.UnmarshalBinary(v)
+		y.UnmarshalBinary(v)
 	}
 }
